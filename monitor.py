@@ -1,6 +1,7 @@
 import requests
 import os
 from datetime import datetime
+import time
 
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
@@ -8,9 +9,20 @@ SITES_TO_CHECK = [
     "https://mebelmoscow.ru/",
     "https://mebel-liberty.ru/"
 ]
-TIMEOUT_THRESHOLD = 0.2  # 200 мс
+
+def is_night_time():
+    """Проверяем, ночное ли время сейчас по Москве (01:00-08:00)"""
+    moscow_time = datetime.utcnow().hour + 3  # UTC+3 для Москвы
+    if moscow_time >= 24:
+        moscow_time -= 24
+    return 1 <= moscow_time < 8  # С 01:00 до 08:00 по Москве
 
 def send_telegram_alert(message):
+    """Отправка уведомления в Telegram"""
+    if is_night_time():
+        print("Ночное время - уведомление не отправляется")
+        return False
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -25,31 +37,42 @@ def send_telegram_alert(message):
         return False
 
 def check_site(url):
+    """Проверка сайта"""
     try:
-        start_time = datetime.now()
         response = requests.get(url, timeout=10)
-        response_time = (datetime.now() - start_time).total_seconds()
-        return {'status': response.status_code, 'response_time': response_time, 'success': True}
+        return {
+            'status': response.status_code,
+            'success': True
+        }
     except Exception as e:
-        return {'status': str(e), 'response_time': None, 'success': False}
+        return {
+            'status': str(e),
+            'success': False
+        }
 
-def main():
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    for url in SITES_TO_CHECK:
-        result = check_site(url)
+def monitor_sites():
+    """Основная функция мониторинга"""
+    while True:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"\nПроверка сайтов в {current_time}")
         
-        if not result['success']:
-            message = f"🚨 Сайт недоступен\nВремя: {current_time}\nСайт: {url}\nОшибка: {result['status']}"
-            send_telegram_alert(message)
-        elif result['status'] != 200:
-            message = f"⚠️ Ошибка статуса\nВремя: {current_time}\nСайт: {url}\nСтатус: {result['status']}"
-            send_telegram_alert(message)
-        elif result['response_time'] > TIMEOUT_THRESHOLD:
-            message = f"🐌 Медленный ответ\nВремя: {current_time}\nСайт: {url}\nВремя ответа: {result['response_time']:.3f} сек"
-            send_telegram_alert(message)
-        else:
-            print(f"✓ {url} - OK ({result['response_time']:.3f} сек)")
+        for url in SITES_TO_CHECK:
+            result = check_site(url)
+            
+            if not result['success']:
+                message = f"🚨 Сайт недоступен\nВремя: {current_time}\nСайт: {url}\nОшибка: {result['status']}"
+                send_telegram_alert(message)
+            elif result['status'] != 200:
+                message = f"⚠️ Ошибка статуса\nВремя: {current_time}\nСайт: {url}\nСтатус: {result['status']}"
+                send_telegram_alert(message)
+            else:
+                print(f"✓ {url} - OK")
+        
+        # Ожидание следующей проверки (15 минут)
+        time.sleep(900)
 
 if __name__ == "__main__":
-    main()
+    print("Запуск мониторинга сайтов...")
+    print(f"Проверяемые сайты: {SITES_TO_CHECK}")
+    print("Уведомления отключены с 01:00 до 08:00 по Москве")
+    monitor_sites()
