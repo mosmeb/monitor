@@ -45,9 +45,9 @@ def main():
         elif result['status'] != 200:
             message = f"⚠️ Ошибка статуса\nВремя: {current_time}\nСайт: {url}\nСтатус: {result['status']}"
             send_telegram_alert(message)
-        #elif result['response_time'] > TIMEOUT_THRESHOLD:
-            #message = f"🐌 Медленный ответ\nВремя: {current_time}\nСайт: {url}\nВремя ответа: {result['response_time']:.3f} сек"
-            #send_telegram_alert(message)
+        elif result['response_time'] > TIMEOUT_THRESHOLD:
+            message = f"🐌 Медленный ответ\nВремя: {current_time}\nСайт: {url}\nВремя ответа: {result['response_time']:.3f} сек"
+            send_telegram_alert(message)
         else:
             print(f"✓ {url} - OK ({result['response_time']:.3f} сек)")
 
