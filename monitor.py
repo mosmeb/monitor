@@ -12,31 +12,43 @@ SITES_TO_CHECK = [
 
 def is_night_time():
     """Проверяем, ночное ли время сейчас по Москве (01:00-08:00)"""
-    moscow_time = datetime.utcnow().hour + 3  # UTC+3 для Москвы
+    from datetime import datetime
+    utc_time = datetime.utcnow()
+    # Правильное преобразование UTC в московское время
+    moscow_time = utc_time.hour + 3
     if moscow_time >= 24:
         moscow_time -= 24
-    return 1 <= moscow_time < 8  # С 01:00 до 08:00 по Москве
+    # Проверяем, ночное ли время (1:00-8:00 по Москве)
+    return 1 <= moscow_time < 8
 
-def send_telegram_alert(message):
-    """Отправка уведомления в Telegram"""
+def send_telegram_alert(message, max_retries=3):
+    """Отправка уведомления в Telegram с повторными попытками"""
     if is_night_time():
         print("Ночное время - уведомление не отправляется")
         return False
         
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
-    }
-    try:
-        print(f"Попытка отправки сообщения в Telegram: {message}")
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Ответ Telegram: {response.status_code} - {response.text}")
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Ошибка отправки в Telegram: {e}")
-        return False
+    for attempt in range(max_retries):
+        try:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            payload = {
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": message,
+                "parse_mode": "HTML"
+            }
+            response = requests.post(url, json=payload, timeout=10)
+            if response.status_code == 200:
+                print("Уведомление успешно отправлено в Telegram")
+                return True
+            else:
+                print(f"Ошибка отправки в Telegram (попытка {attempt+1}): {response.status_code}")
+        except Exception as e:
+            print(f"Ошибка отправки в Telegram (попытка {attempt+1}): {e}")
+        
+        # Ждем перед следующей попыткой
+        time.sleep(5)
+    
+    print("Все попытки отправки уведомления провалились")
+    return False
 
 def check_site(url):
     """Проверка сайта"""
@@ -63,8 +75,9 @@ def main():
     """Основная функция мониторинга - однократная проверка"""
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"Проверка сайтов в {current_time}")
+    print(f"Ночной режим активен: {is_night_time()}")
     
-    # Отправляем тестовое сообщение (можно закомментировать после отладки)
+    # Отправляем тестовое сообщение для отладки
     send_test_message()
     
     for url in SITES_TO_CHECK:
