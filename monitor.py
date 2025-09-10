@@ -1,6 +1,7 @@
 import requests
 import os
 from datetime import datetime
+import time
 
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
@@ -29,7 +30,9 @@ def send_telegram_alert(message):
         "parse_mode": "HTML"
     }
     try:
+        print(f"Попытка отправки сообщения в Telegram: {message}")
         response = requests.post(url, json=payload, timeout=10)
+        print(f"Ответ Telegram: {response.status_code} - {response.text}")
         return response.status_code == 200
     except Exception as e:
         print(f"Ошибка отправки в Telegram: {e}")
@@ -49,10 +52,20 @@ def check_site(url):
             'success': False
         }
 
+def send_test_message():
+    """Отправка тестового сообщения для отладки"""
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    test_message = f"🔧 Тестовое сообщение\nВремя: {current_time}\nПроверка работы системы мониторинга"
+    print(f"Отправка тестового сообщения: {test_message}")
+    return send_telegram_alert(test_message)
+
 def main():
     """Основная функция мониторинга - однократная проверка"""
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"Проверка сайтов в {current_time}")
+    
+    # Отправляем тестовое сообщение (можно закомментировать после отладки)
+    send_test_message()
     
     for url in SITES_TO_CHECK:
         result = check_site(url)
