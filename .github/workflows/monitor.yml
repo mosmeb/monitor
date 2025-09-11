@@ -1,9 +1,8 @@
 name: Site Monitor
 on:
-  # Убираем cron - запускаем только вручную или при push
-  workflow_dispatch:  # Ручной запуск
-  push:  # Автозапуск при обновлении кода
-    branches: [ main ]
+  schedule:
+    - cron: '*/5 * * * *'  # Запуск каждые 5 минут
+  workflow_dispatch:
 
 jobs:
   monitor:
@@ -20,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run continuous monitoring
+      - name: Run monitoring script
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
